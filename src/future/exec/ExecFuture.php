@@ -233,7 +233,7 @@ final class ExecFuture extends PhutilExecutableFuture {
       (string)substr($this->stderr, $this->stderrPos),
     );
 
-    $this->stderrPos = strlen($this->stderr);
+    $this->stderrPos = $this->getStderrBufferLength();
 
     return $result;
   }
@@ -244,7 +244,8 @@ final class ExecFuture extends PhutilExecutableFuture {
     }
 
     $result = (string)substr($this->stdout, $this->stdoutPos);
-    $this->stdoutPos = strlen($this->stdout);
+    $this->stdoutPos = $this->getStdoutBufferLength();
+
     return $result;
   }
 
@@ -499,7 +500,7 @@ final class ExecFuture extends PhutilExecutableFuture {
    * @task internal
    */
   public function isReadBufferEmpty() {
-    return !strlen($this->stdout);
+    return !$this->getStdoutBufferLength();
   }
 
 
@@ -751,14 +752,17 @@ final class ExecFuture extends PhutilExecutableFuture {
     $max_stdout_read_bytes = PHP_INT_MAX;
     $max_stderr_read_bytes = PHP_INT_MAX;
     if ($read_buffer_size !== null) {
-      $max_stdout_read_bytes = $read_buffer_size - strlen($this->stdout);
-      $max_stderr_read_bytes = $read_buffer_size - strlen($this->stderr);
+      $stdout_len = $this->getStdoutBufferLength();
+      $stderr_len = $this->getStderrBufferLength();
+
+      $max_stdout_read_bytes = $read_buffer_size - $stdout_len;
+      $max_stderr_read_bytes = $read_buffer_size - $stderr_len;
     }
 
     if ($max_stdout_read_bytes > 0) {
       $this->stdout .= $this->readAndDiscard(
         $stdout,
-        $this->getStdoutSizeLimit() - strlen($this->stdout),
+        $this->getStdoutSizeLimit() - $this->getStdoutBufferLength(),
         'stdout',
         $max_stdout_read_bytes);
     }
@@ -766,7 +770,7 @@ final class ExecFuture extends PhutilExecutableFuture {
     if ($max_stderr_read_bytes > 0) {
       $this->stderr .= $this->readAndDiscard(
         $stderr,
-        $this->getStderrSizeLimit() - strlen($this->stderr),
+        $this->getStderrSizeLimit() - $this->getStderrBufferLength(),
         'stderr',
         $max_stderr_read_bytes);
     }
@@ -976,4 +980,39 @@ final class ExecFuture extends PhutilExecutableFuture {
     }
   }
 
+  protected function getServiceProfilerStartParameters() {
+    return array(
+      'type' => 'exec',
+      'command' => phutil_string_cast($this->getCommand()),
+    );
+  }
+
+  protected function getServiceProfilerResultParameters() {
+    if ($this->hasResult()) {
+      $result = $this->getResult();
+      $err = idx($result, 0);
+    } else {
+      $err = null;
+    }
+
+    return array(
+      'err' => $err,
+    );
+  }
+
+  private function getStdoutBufferLength() {
+    if ($this->stdout === null) {
+      return 0;
+    }
+
+    return strlen($this->stdout);
+  }
+
+  private function getStderrBufferLength() {
+    if ($this->stderr === null) {
+      return 0;
+    }
+
+    return strlen($this->stderr);
+  }
 }
