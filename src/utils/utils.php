@@ -1848,3 +1848,361 @@ function phutil_is_natural_list(array $list) {
 
   return true;
 }
+
+
+/**
+ * Escape text for inclusion in a URI or a query parameter. Note that this
+ * method does NOT escape '/', because "%2F" is invalid in paths and Apache
+ * will automatically 404 the page if it's present. This will produce correct
+ * (the URIs will work) and desirable (the URIs will be readable) behavior in
+ * these cases:
+ *
+ *    '/path/?param='.phutil_escape_uri($string);         # OK: Query Parameter
+ *    '/path/to/'.phutil_escape_uri($string);             # OK: URI Suffix
+ *
+ * It will potentially produce the WRONG behavior in this special case:
+ *
+ *    COUNTEREXAMPLE
+ *    '/path/to/'.phutil_escape_uri($string).'/thing/';   # BAD: URI Infix
+ *
+ * In this case, any '/' characters in the string will not be escaped, so you
+ * will not be able to distinguish between the string and the suffix (unless
+ * you have more information, like you know the format of the suffix). For infix
+ * URI components, use @{function:phutil_escape_uri_path_component} instead.
+ *
+ * @param   string  Some string.
+ * @return  string  URI encoded string, except for '/'.
+ */
+function phutil_escape_uri($string) {
+  return str_replace('%2F', '/', rawurlencode($string));
+}
+
+
+/**
+ * Escape text for inclusion as an infix URI substring. See discussion at
+ * @{function:phutil_escape_uri}. This function covers an unusual special case;
+ * @{function:phutil_escape_uri} is usually the correct function to use.
+ *
+ * This function will escape a string into a format which is safe to put into
+ * a URI path and which does not contain '/' so it can be correctly parsed when
+ * embedded as a URI infix component.
+ *
+ * However, you MUST decode the string with
+ * @{function:phutil_unescape_uri_path_component} before it can be used in the
+ * application.
+ *
+ * @param   string  Some string.
+ * @return  string  URI encoded string that is safe for infix composition.
+ */
+function phutil_escape_uri_path_component($string) {
+  return rawurlencode(rawurlencode($string));
+}
+
+
+/**
+ * Unescape text that was escaped by
+ * @{function:phutil_escape_uri_path_component}. See
+ * @{function:phutil_escape_uri} for discussion.
+ *
+ * Note that this function is NOT the inverse of
+ * @{function:phutil_escape_uri_path_component}! It undoes additional escaping
+ * which is added to survive the implied unescaping performed by the webserver
+ * when interpreting the request.
+ *
+ * @param string  Some string emitted
+ *                from @{function:phutil_escape_uri_path_component} and
+ *                then accessed via a web server.
+ * @return string Original string.
+ */
+function phutil_unescape_uri_path_component($string) {
+  return rawurldecode($string);
+}
+
+function phutil_is_noninteractive() {
+  if (function_exists('posix_isatty') && !posix_isatty(STDIN)) {
+    return true;
+  }
+
+  return false;
+}
+
+function phutil_is_interactive() {
+  if (function_exists('posix_isatty') && posix_isatty(STDIN)) {
+    return true;
+  }
+
+  return false;
+}
+
+function phutil_encode_log($message) {
+  return addcslashes($message, "\0..\37\\\177..\377");
+}
+
+/**
+ * Insert a value in between each pair of elements in a list.
+ *
+ * Keys in the input list are preserved.
+ */
+function phutil_glue(array $list, $glue) {
+  if (!$list) {
+    return $list;
+  }
+
+  $last_key = last_key($list);
+
+  $keys = array();
+  $values = array();
+
+  $tmp = $list;
+
+  foreach ($list as $key => $ignored) {
+    $keys[] = $key;
+    if ($key !== $last_key) {
+      $tmp[] = $glue;
+      $keys[] = last_key($tmp);
+    }
+  }
+
+  return array_select_keys($tmp, $keys);
+}
+
+function phutil_partition(array $map) {
+  $partitions = array();
+
+  $partition = array();
+  $is_first = true;
+  $partition_value = null;
+
+  foreach ($map as $key => $value) {
+    if (!$is_first) {
+      if ($partition_value === $value) {
+        $partition[$key] = $value;
+        continue;
+      }
+
+      $partitions[] = $partition;
+    }
+
+    $is_first = false;
+    $partition = array($key => $value);
+    $partition_value = $value;
+  }
+
+  if ($partition) {
+    $partitions[] = $partition;
+  }
+
+  return $partitions;
+}
+
+function phutil_preg_match(
+  $pattern,
+  $subject,
+  $flags = 0,
+  $offset = 0) {
+
+  $matches = null;
+  $result = @preg_match($pattern, $subject, $matches, $flags, $offset);
+  if ($result === false || $result === null) {
+    phutil_raise_preg_exception(
+      'preg_match',
+      array(
+        $pattern,
+        $subject,
+        $matches,
+        $flags,
+        $offset,
+      ));
+  }
+
+  return $matches;
+}
+
+function phutil_preg_match_all(
+  $pattern,
+  $subject,
+  $flags = 0,
+  $offset = 0) {
+
+  $matches = null;
+  $result = @preg_match_all($pattern, $subject, $matches, $flags, $offset);
+  if ($result === false || $result === null) {
+    phutil_raise_preg_exception(
+      'preg_match_all',
+      array(
+        $pattern,
+        $subject,
+        $matches,
+        $flags,
+        $offset,
+      ));
+  }
+
+  return $matches;
+}
+
+function phutil_raise_preg_exception($function, array $argv) {
+  $trap = new PhutilErrorTrap();
+
+  // NOTE: This ugly construction to avoid issues with reference behavior when
+  // passing values through "call_user_func_array()".
+
+  switch ($function) {
+    case 'preg_match':
+      @preg_match($argv[0], $argv[1], $argv[2], $argv[3], $argv[4]);
+      break;
+    case 'preg_match_all':
+      @preg_match_all($argv[0], $argv[1], $argv[2], $argv[3], $argv[4]);
+      break;
+  }
+  $error_message = $trap->getErrorsAsString();
+
+  $trap->destroy();
+
+  $pattern = $argv[0];
+  $pattern_display = sprintf(
+    '"%s"',
+    addcslashes($pattern, '\\\"'));
+
+  $message = array();
+  $message[] = pht(
+    'Call to %s(%s, ...) failed.',
+    $function,
+    $pattern_display);
+
+  if (strlen($error_message)) {
+    $message[] = pht(
+      'Regular expression engine emitted message: %s',
+      $error_message);
+  }
+
+  $message = implode("\n\n", $message);
+
+  throw new PhutilRegexException($message);
+}
+
+
+/**
+ * Test if a value is a nonempty string.
+ *
+ * The value "null" and the empty string are considered empty; all other
+ * strings are considered nonempty.
+ *
+ * This method raises an exception if passed a value which is neither null
+ * nor a string.
+ *
+ * @param Value to test.
+ * @return bool True if the parameter is a nonempty string.
+ */
+function phutil_nonempty_string($value) {
+  if ($value === null) {
+    return false;
+  }
+
+  if ($value === '') {
+    return false;
+  }
+
+  if (is_string($value)) {
+    return true;
+  }
+
+  throw new InvalidArgumentException(
+    pht(
+      'Call to phutil_nonempty_string() expected null or a string, got: %s.',
+      phutil_describe_type($value)));
+}
+
+
+/**
+ * Test if a value is a nonempty, stringlike value.
+ *
+ * The value "null", the empty string, and objects which have a "__toString()"
+ * method which returns the empty string are empty.
+ *
+ * Other strings, and objects with a "__toString()" method that returns a
+ * string other than the empty string are considered nonempty.
+ *
+ * This method raises an exception if passed any other value.
+ *
+ * @param Value to test.
+ * @return bool True if the parameter is a nonempty, stringlike value.
+ */
+function phutil_nonempty_stringlike($value) {
+  if ($value === null) {
+    return false;
+  }
+
+  if ($value === '') {
+    return false;
+  }
+
+  if (is_string($value)) {
+    return true;
+  }
+
+  if (is_object($value)) {
+    try {
+      $string = phutil_string_cast($value);
+      return phutil_nonempty_string($string);
+    } catch (Exception $ex) {
+      // Continue below.
+    } catch (Throwable $ex) {
+      // Continue below.
+    }
+  }
+
+  throw new InvalidArgumentException(
+    pht(
+      'Call to phutil_nonempty_stringlike() expected a string or stringlike '.
+      'object, got: %s.',
+      phutil_describe_type($value)));
+}
+
+
+/**
+ * Test if a value is a nonempty, scalar value.
+ *
+ * The value "null", the empty string, and objects which have a "__toString()"
+ * method which returns the empty string are empty.
+ *
+ * Other strings, objects with a "__toString()" method which returns a
+ * string other than the empty string, integers, and floats are considered
+ * scalar.
+ *
+ * This method raises an exception if passed any other value.
+ *
+ * @param Value to test.
+ * @return bool True if the parameter is a nonempty, scalar value.
+ */
+function phutil_nonempty_scalar($value) {
+  if ($value === null) {
+    return false;
+  }
+
+  if ($value === '') {
+    return false;
+  }
+
+  if (is_string($value) || is_int($value) || is_float($value)) {
+    return true;
+  }
+
+  if (is_object($value)) {
+    try {
+      $string = phutil_string_cast($value);
+      return phutil_nonempty_string($string);
+    } catch (Exception $ex) {
+      // Continue below.
+    } catch (Throwable $ex) {
+      // Continue below.
+    }
+  }
+
+  throw new InvalidArgumentException(
+    pht(
+      'Call to phutil_nonempty_scalar() expected: a string; or stringlike '.
+      'object; or int; or float. Got: %s.',
+      phutil_describe_type($value)));
+}
+
