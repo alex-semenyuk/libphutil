@@ -1291,6 +1291,11 @@ function phutil_microseconds_since($timestamp) {
  * @return  mixed     Decoded list/dictionary.
  */
 function phutil_json_decode($string) {
+  if ($string === null) {
+    throw new PhutilJSONParserException(pht('Value "null" is not a valid JSON '.
+      'encoded object.'));
+  }
+
   $result = @json_decode($string, true);
 
   if (!is_array($result)) {
@@ -1847,4 +1852,35 @@ function phutil_is_natural_list(array $list) {
   }
 
   return true;
+}
+
+/**
+ * Test if a value is a nonempty string.
+ *
+ * The value "null" and the empty string are considered empty; all other
+ * strings are considered nonempty.
+ *
+ * This method raises an exception if passed a value which is neither null
+ * nor a string.
+ *
+ * @param Value to test.
+ * @return bool True if the parameter is a nonempty string.
+ */
+function phutil_nonempty_string($value) {
+  if ($value === null) {
+    return false;
+  }
+
+  if ($value === '') {
+    return false;
+  }
+
+  if (is_string($value)) {
+    return true;
+  }
+
+  throw new InvalidArgumentException(
+    pht(
+      'Call to phutil_nonempty_string() expected null or a string, got: %s.',
+      phutil_describe_type($value)));
 }

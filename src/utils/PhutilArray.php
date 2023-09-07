@@ -36,6 +36,7 @@ abstract class PhutilArray
 
 /* -(  Iterator Interface  )------------------------------------------------- */
 
+
   #[\ReturnTypeWillChange]
   public function current() {
     return current($this->data);

@@ -233,7 +233,7 @@ final class ExecFuture extends PhutilExecutableFuture {
       (string)substr($this->stderr, $this->stderrPos),
     );
 
-    $this->stderrPos = strlen($this->stderr);
+    $this->stderrPos = $this->getStderrBufferLength();
 
     return $result;
   }
@@ -244,7 +244,7 @@ final class ExecFuture extends PhutilExecutableFuture {
     }
 
     $result = (string)substr($this->stdout, $this->stdoutPos);
-    $this->stdoutPos = strlen($this->stdout);
+    $this->stdoutPos = $this->getStdoutBufferLength();
     return $result;
   }
 
@@ -499,7 +499,7 @@ final class ExecFuture extends PhutilExecutableFuture {
    * @task internal
    */
   public function isReadBufferEmpty() {
-    return !strlen($this->stdout);
+    return !$this->getStdoutBufferLength();
   }
 
 

@@ -196,13 +196,13 @@ foreach ($calls as $call) {
     $symbol = array_shift($params);
     $type = 'function';
     $symbol_value = $symbol->getStringLiteralValue();
-    
+
     if ($symbol_value !== null) {
       $pos = strpos($symbol_value, '::');
     } else {
       $pos = false;
     }
-  
+
     if ($pos) {
       $type = 'class';
       $symbol_value = substr($symbol_value, 0, $pos);

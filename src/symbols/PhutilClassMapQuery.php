@@ -204,7 +204,7 @@ final class PhutilClassMapQuery extends Phobject {
    */
   private function loadMap() {
     $ancestor = $this->ancestorClass;
-    if (!strlen($ancestor)) {
+    if ($ancestor === null || !strlen($ancestor)) {
       throw new PhutilInvalidStateException('setAncestorClass');
     }
 
@@ -221,8 +221,8 @@ final class PhutilClassMapQuery extends Phobject {
     $unique = $this->uniqueMethod;
     $sort = $this->sortMethod;
 
-    if ($expand !== null) {
-      if ($unique === null) {
+    if ($expand !== null && strlen($expand)) {
+      if ($unique === null || !strlen($unique)) {
         throw new Exception(
           pht(
             'Trying to execute a class map query for descendants of class '.
@@ -239,7 +239,7 @@ final class PhutilClassMapQuery extends Phobject {
       ->loadObjects();
 
     // Apply the "expand" mechanism, if it is configured.
-    if ($expand !== null) {
+    if ($expand !== null && strlen($expand)) {
       $list = array();
       foreach ($objects as $object) {
         foreach (call_user_func(array($object, $expand)) as $instance) {
@@ -251,7 +251,7 @@ final class PhutilClassMapQuery extends Phobject {
     }
 
     // Apply the "unique" mechanism, if it is configured.
-    if ($unique !== null) {
+    if ($unique !== null && strlen($unique)) {
       $map = array();
       foreach ($list as $object) {
         $key = call_user_func(array($object, $unique));
@@ -281,12 +281,12 @@ final class PhutilClassMapQuery extends Phobject {
     }
 
     // Apply the "filter" mechanism, if it is configured.
-    if ($filter !== null) {
+    if ($filter !== null && strlen($filter)) {
       $map = mfilter($map, $filter);
     }
 
     // Apply the "sort" mechanism, if it is configured.
-    if ($sort !== null) {
+    if ($sort !== null && strlen($sort)) {
       if ($map) {
         // The "sort" method may return scalars (which we want to sort with
         // "msort()"), or may return PhutilSortVector objects (which we want

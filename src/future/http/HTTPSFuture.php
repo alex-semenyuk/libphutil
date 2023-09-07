@@ -254,7 +254,7 @@ final class HTTPSFuture extends BaseHTTPFuture {
         curl_setopt($curl, CURLOPT_REDIR_PROTOCOLS, $allowed_protocols);
       }
 
-      if ($this->rawBody !== null) {
+      if ($this->rawBody !== null && strlen($this->rawBody)) {
         if ($this->getData()) {
           throw new Exception(
             pht(

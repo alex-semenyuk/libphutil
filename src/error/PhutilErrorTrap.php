@@ -41,7 +41,7 @@ final class PhutilErrorTrap extends Phobject {
   private $destroyed;
   private $errors = array();
 
-  public function addError($num, $str, $file, $line, $ctx = null) {
+  public function addError($num, $str, $file, $line) {
     $this->errors[] = array(
       'num' => $num,
       'str' => $str,

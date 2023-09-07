@@ -256,9 +256,6 @@ function phutil_is_utf8_slowly($string, $only_bmp = false) {
  * @return int   The character length of the string.
  */
 function phutil_utf8_strlen($string) {
-  if (function_exists('utf8_decode')) {
-    return strlen(utf8_decode($string));
-  }
   return count(phutil_utf8v($string));
 }
 
@@ -283,7 +280,7 @@ function phutil_utf8_strlen($string) {
  */
 function phutil_utf8_console_strlen($string) {
   $string = phutil_string_cast($string);
-  
+
   // Formatting and colors don't contribute any width in the console.
   $string = preg_replace("/\x1B\[\d*m/", '', $string);
 
